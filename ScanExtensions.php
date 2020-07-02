@@ -2,11 +2,20 @@
 
 global $wgAutoloadClasses;
 $wgAutoloadClasses = $wgAutoloadClasses ?? [];
+$IP = getenv( 'MW_INSTALL_PATH' );
 
-require_once __DIR__ . '/includes/AutoLoader.php';
-require_once __DIR__ . '/includes/utils/AutoloadGenerator.php';
-require __DIR__ . '/vendor/autoload.php';
-require_once __DIR__ . '/tests/common/TestsAutoLoader.php';
+if ( !$IP ) {
+	die( "Please set the MW_INSTALL_PATH environment variable\n" );
+}
+
+if ( !is_file( "$IP/thumb.php" ) ) {
+	die( "MediaWiki not found in $IP\n" );
+}
+
+require_once $IP . '/includes/AutoLoader.php';
+require_once $IP . '/includes/utils/AutoloadGenerator.php';
+require $IP . '/vendor/autoload.php';
+require_once $IP . '/tests/common/TestsAutoLoader.php';
 
 use PhpParser\NodeFinder;
 use PhpParser\ParserFactory;
@@ -27,35 +36,35 @@ class ScratchExtensions {
 
 	private function getExtensionInfo( $res, $unstableMethods ) {
 		$baseUrl = 'https://gerrit.wikimedia.org/g/mediawiki/extensions/';
-		foreach ( $res as $extRepo => $ext ) {
-			echo "Checking $extRepo \n";
-			foreach ( $ext['Matches'] as $match ) {
-				// this will only match MW owned extensions
-				preg_match( '/Extension:(\w+)/', $extRepo, $matches );
-				if ($matches) {
-					$extName = $matches[1];
-					$url = $baseUrl . $extName . '/+/' . $ext['Revision'] . '/' . $match['Filename'] . '?format=TEXT';
-					$base64File = file_get_contents($url);
-					$decoded = base64_decode($base64File);
-					try {
-						$parser = (new ParserFactory)->create(ParserFactory::PREFER_PHP7);
-						$stmts = $parser->parse($decoded);
-						$nodeFinder = new NodeFinder();
-						// TODO account for use stmts and namespace declarations to SKIP non-mw extended classes
-						// TODO in MW namespace
-						$methods = $nodeFinder->findInstanceOf($stmts, Node\Stmt\ClassMethod::class);
-						foreach ($methods as $method) {
-							if ( in_array($method->name->toString(), $unstableMethods)) {
-								echo "$extName overrides unstable method $method->name in file" . $match['Filename'] . "\n" ;
+			foreach ( $res as $extRepo => $ext ) {
+				echo "Checking $extRepo \n";
+				foreach ( $ext['Matches'] as $match ) {
+					// this will only match MW owned extensions
+					preg_match( '/Extension:(\w+)/', $extRepo, $matches );
+					if ($matches) {
+							$extName = $matches[1];
+							$url = $baseUrl . $extName . '/+/' . $ext['Revision'] . '/' . $match['Filename'] . '?format=TEXT';
+							$base64File = file_get_contents($url);
+							$decoded = base64_decode($base64File);
+						try {
+							$parser = (new ParserFactory)->create(ParserFactory::PREFER_PHP7);
+							$stmts = $parser->parse($decoded);
+							$nodeFinder = new NodeFinder();
+							// TODO account for use stmts and namespace declarations to SKIP non-mw extended classes
+							// TODO in MW namespace
+							$methods = $nodeFinder->findInstanceOf($stmts, Node\Stmt\ClassMethod::class);
+							foreach ($methods as $method) {
+								if ( in_array($method->name->toString(), $unstableMethods)) {
+									echo "$extName overrides unstable method $method->name in file" . $match['Filename'] . "\n" ;
+								}
 							}
+						} catch (Error $error) {
+							echo "Parse error: {$error->getMessage()}\n";
+							return;
 						}
-					} catch (Error $error) {
-						echo "Parse error: {$error->getMessage()}\n";
-						return;
 					}
 				}
 			}
-		}
 	}
 
 	private function getExtensionUrl() {
@@ -111,6 +120,9 @@ class ScratchExtensions {
 	 * @throws ReflectionException
 	 */
 	private function processFile($file) {
+		global $IP;
+		$file = "$IP/$file";
+		
 		echo "PROCESSING $file\n";
 		if ( !is_file($file) ) {
 			echo $file . " not found\n";
@@ -213,4 +225,9 @@ class ScratchExtensions {
 $thing = new ScratchExtensions();
 $files = $argv;
 array_shift( $files );
+
+if ( !$files ) {
+	die( "Please specify files on the command line, relative to the MediaWiki installation directory.\n" );
+}
+
 $thing->run( $files );
