@@ -34,7 +34,7 @@ class ScratchExtensions {
 		}
 	}
 
-	private function getExtensionInfo( $res, $unstableMethods, $context ) {
+	private function getExtensionInfo( $res, $unstableMethods, $contextClass ) {
 		$baseUrl = 'https://gerrit.wikimedia.org/g/mediawiki/extensions/';
 			foreach ( $res as $extRepo => $ext ) {
 				echo "Checking $extRepo \n";
@@ -55,7 +55,7 @@ class ScratchExtensions {
 							$methods = $nodeFinder->findInstanceOf($stmts, Node\Stmt\ClassMethod::class);
 							foreach ($methods as $method) {
 								if ( in_array($method->name->toString(), $unstableMethods)) {
-									echo "\tIn repo $extName, {$match['Filename']} overrides unstable method {$method->name} from $context\n" ;
+									echo "\tIn repo $extName, {$match['Filename']} overrides unstable method $contextClass::{$method->name}()\n" ;
 								}
 							}
 						} catch (Error $error) {
