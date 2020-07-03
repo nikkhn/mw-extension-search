@@ -147,7 +147,7 @@ class ScratchExtensions {
 	 * @return mixed|null
 	 */
 	private function queryCodeSearch( $class ) {
-		$url = 'https://codesearch.wmflabs.org/extensions/api/v1/search?';
+		$url = 'https://codesearch.wmflabs.org/things/api/v1/search?';
 		$q = [
 			'stats' => 'fosho',
 			'repos' => '*',
