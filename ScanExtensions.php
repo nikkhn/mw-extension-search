@@ -34,7 +34,7 @@ class ScratchExtensions {
 		}
 	}
 
-	private function getExtensionInfo( $res, $unstableMethods ) {
+	private function getExtensionInfo( $res, $unstableMethods, $context ) {
 		$baseUrl = 'https://gerrit.wikimedia.org/g/mediawiki/extensions/';
 			foreach ( $res as $extRepo => $ext ) {
 				echo "Checking $extRepo \n";
@@ -55,7 +55,7 @@ class ScratchExtensions {
 							$methods = $nodeFinder->findInstanceOf($stmts, Node\Stmt\ClassMethod::class);
 							foreach ($methods as $method) {
 								if ( in_array($method->name->toString(), $unstableMethods)) {
-									echo "$extName overrides unstable method $method->name in file" . $match['Filename'] . "\n" ;
+									echo "\tIn repo $extName, {$match['Filename']} overrides unstable method {$method->name} from $context\n" ;
 								}
 							}
 						} catch (Error $error) {
@@ -123,23 +123,25 @@ class ScratchExtensions {
 		global $IP;
 		$file = "$IP/$file";
 		
-		echo "PROCESSING $file\n";
+		echo "\nPROCESSING $file\n";
 		if ( !is_file($file) ) {
 			echo $file . " not found\n";
 			return;
 		}
 		$classNameInfo = $this->getClassName( $file );
 		if ( !$classNameInfo ) {
-			echo("$file  is not a class\n");
+			echo("$file is not a class\n");
 			return;
 		}
-		$unstableMethods= $this->getUnstableMethods( $classNameInfo['namespace'] . '\\' . $classNameInfo['class'] );
+
+		$qClass = $classNameInfo['namespace'] . '\\' . $classNameInfo['class'];
+		$unstableMethods= $this->getUnstableMethods( $qClass );
 		$extensionUsages = $this->queryCodeSearch( $classNameInfo['class'] );
 		if ( !$extensionUsages ) {
 			echo "no matches\n";
 			return;
 		}
-		$this->getExtensionInfo($extensionUsages, $unstableMethods);
+		$this->getExtensionInfo( $extensionUsages, $unstableMethods, $qClass );
 	}
 
 	/**
