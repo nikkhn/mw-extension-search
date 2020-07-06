@@ -34,17 +34,24 @@ class ScratchExtensions {
 		}
 	}
 
-	private function getExtensionInfo( $res, $unstableMethods ) {
-		$baseUrl = 'https://gerrit.wikimedia.org/g/mediawiki/extensions/';
+	private function getExtensionInfo( $res, $unstableMethods, $contextClass ) {
+		$baseUrl = 'https://gerrit.wikimedia.org/g/mediawiki/';
 			foreach ( $res as $extRepo => $ext ) {
 				echo "Checking $extRepo \n";
 				foreach ( $ext['Matches'] as $match ) {
 					// this will only match MW owned extensions
-					preg_match( '/Extension:(\w+)/', $extRepo, $matches );
+					preg_match( '/(Extension|Skin):(\w+)/', $extRepo, $matches );
 					if ($matches) {
-							$extName = $matches[1];
-							$url = $baseUrl . $extName . '/+/' . $ext['Revision'] . '/' . $match['Filename'] . '?format=TEXT';
-							$base64File = file_get_contents($url);
+							$typeName = strtolower( $matches[1] );
+							$extName = $matches[2];
+							$url = $baseUrl . $typeName . 's/' . $extName . '/+/' . $ext['Revision'] . '/' . $match['Filename'] . '?format=TEXT';
+							$base64File = @file_get_contents($url);
+							
+							if ( !$base64File ) {
+								echo "Failed to fetch $url!\n";
+								continue;
+							}
+							
 							$decoded = base64_decode($base64File);
 						try {
 							$parser = (new ParserFactory)->create(ParserFactory::PREFER_PHP7);
@@ -55,13 +62,15 @@ class ScratchExtensions {
 							$methods = $nodeFinder->findInstanceOf($stmts, Node\Stmt\ClassMethod::class);
 							foreach ($methods as $method) {
 								if ( in_array($method->name->toString(), $unstableMethods)) {
-									echo "$extName overrides unstable method $method->name in file" . $match['Filename'] . "\n" ;
+									echo "\tIn repo $extName, {$match['Filename']} overrides unstable method $contextClass::{$method->name}()\n" ;
 								}
 							}
 						} catch (Error $error) {
 							echo "Parse error: {$error->getMessage()}\n";
-							return;
+							continue;
 						}
+					} else {
+							echo "Can't process $extRepo\n";
 					}
 				}
 			}
@@ -123,23 +132,25 @@ class ScratchExtensions {
 		global $IP;
 		$file = "$IP/$file";
 		
-		echo "PROCESSING $file\n";
+		echo "\nPROCESSING $file\n";
 		if ( !is_file($file) ) {
 			echo $file . " not found\n";
 			return;
 		}
 		$classNameInfo = $this->getClassName( $file );
 		if ( !$classNameInfo ) {
-			echo("$file  is not a class\n");
+			echo("$file is not a class\n");
 			return;
 		}
-		$unstableMethods= $this->getUnstableMethods( $classNameInfo['namespace'] . '\\' . $classNameInfo['class'] );
+
+		$qClass = $classNameInfo['namespace'] . '\\' . $classNameInfo['class'];
+		$unstableMethods= $this->getUnstableMethods( $qClass );
 		$extensionUsages = $this->queryCodeSearch( $classNameInfo['class'] );
 		if ( !$extensionUsages ) {
 			echo "no matches\n";
 			return;
 		}
-		$this->getExtensionInfo($extensionUsages, $unstableMethods);
+		$this->getExtensionInfo( $extensionUsages, $unstableMethods, $qClass );
 	}
 
 	/**
