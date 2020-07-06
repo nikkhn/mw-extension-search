@@ -35,16 +35,23 @@ class ScratchExtensions {
 	}
 
 	private function getExtensionInfo( $res, $unstableMethods, $contextClass ) {
-		$baseUrl = 'https://gerrit.wikimedia.org/g/mediawiki/extensions/';
+		$baseUrl = 'https://gerrit.wikimedia.org/g/mediawiki/';
 			foreach ( $res as $extRepo => $ext ) {
 				echo "Checking $extRepo \n";
 				foreach ( $ext['Matches'] as $match ) {
 					// this will only match MW owned extensions
-					preg_match( '/Extension:(\w+)/', $extRepo, $matches );
+					preg_match( '/(Extension|Skin):(\w+)/', $extRepo, $matches );
 					if ($matches) {
-							$extName = $matches[1];
-							$url = $baseUrl . $extName . '/+/' . $ext['Revision'] . '/' . $match['Filename'] . '?format=TEXT';
-							$base64File = file_get_contents($url);
+							$typeName = strtolower( $matches[1] );
+							$extName = $matches[2];
+							$url = $baseUrl . $typeName . 's/' . $extName . '/+/' . $ext['Revision'] . '/' . $match['Filename'] . '?format=TEXT';
+							$base64File = @file_get_contents($url);
+							
+							if ( !$base64File ) {
+								echo "Failed to fetch $url!\n";
+								continue;
+							}
+							
 							$decoded = base64_decode($base64File);
 						try {
 							$parser = (new ParserFactory)->create(ParserFactory::PREFER_PHP7);
@@ -60,8 +67,10 @@ class ScratchExtensions {
 							}
 						} catch (Error $error) {
 							echo "Parse error: {$error->getMessage()}\n";
-							return;
+							continue;
 						}
+					} else {
+							echo "Can't process $extRepo\n";
 					}
 				}
 			}
@@ -149,7 +158,7 @@ class ScratchExtensions {
 	 * @return mixed|null
 	 */
 	private function queryCodeSearch( $class ) {
-		$url = 'https://codesearch.wmflabs.org/extensions/api/v1/search?';
+		$url = 'https://codesearch.wmflabs.org/things/api/v1/search?';
 		$q = [
 			'stats' => 'fosho',
 			'repos' => '*',
