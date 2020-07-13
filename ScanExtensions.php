@@ -204,7 +204,7 @@ class ScratchExtensions {
 				continue;
 			}
 			$comment = $refMethod->getDocComment();
-			if ( !preg_match('/@stable for overriding/', $comment ) ) { // function is not stable
+			if ( !preg_match('/@stable (for overriding|to override)/', $comment ) ) { // function is not stable
 				$unstableMethods[] = $method;
 			}
 		}
