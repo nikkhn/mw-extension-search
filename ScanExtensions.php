@@ -46,12 +46,12 @@ class ScratchExtensions {
 							$extName = $matches[2];
 							$url = $baseUrl . $typeName . 's/' . $extName . '/+/' . $ext['Revision'] . '/' . $match['Filename'] . '?format=TEXT';
 							$base64File = @file_get_contents($url);
-							
+
 							if ( !$base64File ) {
 								echo "Failed to fetch $url!\n";
 								continue;
 							}
-							
+
 							$decoded = base64_decode($base64File);
 						try {
 							$parser = (new ParserFactory)->create(ParserFactory::PREFER_PHP7);
@@ -131,7 +131,7 @@ class ScratchExtensions {
 	private function processFile($file) {
 		global $IP;
 		$file = "$IP/$file";
-		
+
 		echo "\nPROCESSING $file\n";
 		if ( !is_file($file) ) {
 			echo $file . " not found\n";
@@ -158,7 +158,7 @@ class ScratchExtensions {
 	 * @return mixed|null
 	 */
 	private function queryCodeSearch( $class ) {
-		$url = 'https://codesearch.wmflabs.org/things/api/v1/search?';
+		$url = 'https://codesearch.wmcloud.org/things/api/v1/search?';
 		$q = [
 			'stats' => 'fosho',
 			'repos' => '*',
